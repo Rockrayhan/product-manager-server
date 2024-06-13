@@ -19,6 +19,8 @@ const port = process.env.PORT;
 app.use(cors());
 app.use(express.json());
 
+
+
 const uri = process.env.DB_URI;
 
 // const uri="mongodb+srv://khayrulalamdict:AdrN0sAmVR43ne6K@cluster0.qdsaagu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
@@ -53,12 +55,32 @@ app.post('/products', async(req, res) => {
     res.send(result);
 }) ;
 
-// send purchase
-app.post('/purchase', async(req, res) => {
-    const productsData = req.body ;
-    const result = await purchaseCollection.insertOne(productsData);
-    res.send(result);
-}) ;
+
+// Send purchase and update stock
+app.post('/purchase', async (req, res) => {
+  const { title, uName, email, quantity, price, productId, img_url } = req.body;
+
+  try {
+    // Insert the purchase record
+    const purchaseResult = await purchaseCollection.insertOne({ title, uName, email, quantity, price, img_url });
+
+    // Update the stock of the purchased product using the _id
+    const updateResult = await productsCollection.updateOne(
+      { _id: new ObjectId(productId) }, // Find the product by _id
+      { $inc: { stock: -quantity } } // Decrement the stock by the quantity purchased
+    );
+
+    if (updateResult.modifiedCount === 1) {
+      res.send(purchaseResult);
+    } else {
+      res.status(500).send({ error: 'Failed to update stock' });
+    }
+  } catch (error) {
+    res.status(500).send({ error: 'An error occurred during the purchase process' });
+  }
+});
+
+
 
 // get all data
 app.get('/products', async(req, res) => {
@@ -67,13 +89,29 @@ app.get('/products', async(req, res) => {
     res.send(result);
 })
 
-// get data by user email
+// get products by user email
 
 app.get('/myproducts', async (req, res) => {
   const email = req.query.email;
   console.log('Query email:', email);  // Debugging line
   if (email) {
       const productsData = productsCollection.find({ email }); // Use the correct field name
+      const result = await productsData.toArray();
+      console.log('Found blogs:', result);  // Debugging line
+      res.send(result);
+  } else {
+      res.status(400).send({ message: 'Email query parameter is required' });
+  }
+});
+
+
+// get Purchased by user email
+
+app.get('/purchased', async (req, res) => {
+  const email = req.query.email;
+  console.log('Query email:', email);  // Debugging line
+  if (email) {
+      const productsData = purchaseCollection.find({ email }); // Use the correct field name
       const result = await productsData.toArray();
       console.log('Found blogs:', result);  // Debugging line
       res.send(result);
