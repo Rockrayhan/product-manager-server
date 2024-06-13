@@ -38,6 +38,7 @@ async function run() {
     // products
     const productDB = client.db("productDB");
     const productsCollection = productDB.collection("productsCollection");
+    const purchaseCollection = productDB.collection("purchaseCollection");
 
     // users
     const userDB = client.db("usersDB");
@@ -45,15 +46,22 @@ async function run() {
 
 //=====  product routes =======
 
-// send data
-app.post('/blogs', async(req, res) => {
+// send product
+app.post('/products', async(req, res) => {
     const productsData = req.body ;
     const result = await productsCollection.insertOne(productsData);
     res.send(result);
 }) ;
 
+// send purchase
+app.post('/purchase', async(req, res) => {
+    const productsData = req.body ;
+    const result = await purchaseCollection.insertOne(productsData);
+    res.send(result);
+}) ;
+
 // get all data
-app.get('/blogs', async(req, res) => {
+app.get('/products', async(req, res) => {
     const productsData =  productsCollection.find();
     const result = await productsData.toArray() ;
     res.send(result);
@@ -61,7 +69,7 @@ app.get('/blogs', async(req, res) => {
 
 // get data by user email
 
-app.get('/myblogs', async (req, res) => {
+app.get('/myproducts', async (req, res) => {
   const email = req.query.email;
   console.log('Query email:', email);  // Debugging line
   if (email) {
@@ -83,7 +91,7 @@ app.get('/myblogs', async (req, res) => {
 
 
 // get single data
-app.get('/blogs/:id', async(req, res) => {
+app.get('/products/:id', async(req, res) => {
     const id = req.params.id
     const productsData =  await productsCollection.findOne({_id: new ObjectId(id)});
     res.send(productsData);
@@ -91,7 +99,7 @@ app.get('/blogs/:id', async(req, res) => {
 
 
 // update
-app.patch('/blogs/:id', async(req, res) => {
+app.patch('/products/:id', async(req, res) => {
     const id = req.params.id
     const updatedData = req.body ;
 
@@ -104,7 +112,7 @@ app.patch('/blogs/:id', async(req, res) => {
 })
 
 // delete
-app.delete('/blogs/:id', async(req, res) => {
+app.delete('/products/:id', async(req, res) => {
     const id = req.params.id
     const result =  await productsCollection.deleteOne(
       { _id: new ObjectId(id) },  
