@@ -198,22 +198,25 @@ app.patch('/user/:email', async(req, res) => {
 
 // ============= payment intent ================
 
-app.post('/create-payment-intent', async(req, res) => {
-  const {price} = req.body ;
-  const amount = parseInt(price * 100 ) ;
+app.post('/create-payment-intent', async (req, res) => {
+  const { price } = req.body;
+  const amount = parseInt(price); // Amount is already in cents from the frontend
 
-   // Create a PaymentIntent with the order amount and currency
-   const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    payment_method_types: ['card']
-  });
+  try {
+      const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ['card']
+      });
 
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
+      res.send({
+          clientSecret: paymentIntent.client_secret,
+      });
+  } catch (error) {
+      res.status(500).send({ error: error.message });
+  }
+});
 
-})
 
 
     console.log("Database is connected");
