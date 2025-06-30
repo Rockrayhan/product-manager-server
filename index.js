@@ -1,13 +1,4 @@
-// const express = require('express') ;
-// const cors = require('cors') ;
-// require("dotenv").config() ;
-// const app = express();
-// const port = process.env.PORT  ;
-// app.use(cors()) ;
-// app.use(express.json()) ;
-// const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-
-
+// const serverlessExpress = require('@vendia/serverless-express');
 const express = require("express");
 const app = express();
 const cors = require("cors");
@@ -15,7 +6,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // env config
 const env = require("dotenv");
 env.config();
-const port = process.env.PORT || 5000 ;
+const port = 5000 ;
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 app.use(cors());
 app.use(express.json());
@@ -38,20 +29,22 @@ async function run() {
   try {
     await client.connect();
     // products
-    const productDB = client.db("productDB");
-    const productsCollection = productDB.collection("productsCollection");
-    const purchaseCollection = productDB.collection("purchaseCollection");
+    const eventDB = client.db("eventsDB");
+    const eventsCollection = eventDB.collection("eventsCollection");
+    const joinedEventsCollection = eventDB.collection("joinedEventsCollection");
+
 
     // users
     const userDB = client.db("usersDB");
     const userCollection = userDB.collection("usersCollection") ;
 
-//=====  product routes =======
+//=====  event routes =======
 
 // send product
-app.post('/products', async(req, res) => {
-    const productsData = req.body ;
-    const result = await productsCollection.insertOne(productsData);
+app.post('/events', async(req, res) => {
+    const eventsData = req.body ;
+    eventsData.attendeeCount = 0;
+    const result = await eventsCollection.insertOne(eventsData);
     res.send(result);
 }) ;
 
@@ -62,10 +55,10 @@ app.post('/purchase', async (req, res) => {
 
   try {
     // Insert the purchase record
-    const purchaseResult = await purchaseCollection.insertOne({ title, uName, email, quantity, price, img_url });
+    const purchaseResult = await joinedEventsCollection.insertOne({ title, uName, email, quantity, price, img_url });
 
     // Update the stock of the purchased product using the _id
-    const updateResult = await productsCollection.updateOne(
+    const updateResult = await eventsCollection.updateOne(
       { _id: new ObjectId(productId) }, // Find the product by _id
       { $inc: { stock: -quantity } } // Decrement the stock by the quantity purchased
     );
@@ -83,19 +76,30 @@ app.post('/purchase', async (req, res) => {
 
 
 // get all data
-app.get('/products', async(req, res) => {
-    const productsData =  productsCollection.find();
-    const result = await productsData.toArray() ;
+app.get('/events', async (req, res) => {
+  try {
+    const result = await eventsCollection
+      .find({})
+      .sort({ dateTime: -1 }) // Sort by ISO date string descending
+      .toArray();
+
     res.send(result);
-})
+  } catch (error) {
+    console.error("Failed to fetch events:", error);
+    res.status(500).send({ error: "Failed to fetch events" });
+  }
+});
+
+
+
 
 // get products by user email
 
-app.get('/myproducts', async (req, res) => {
+app.get('/myevents', async (req, res) => {
   const email = req.query.email;
   console.log('Query email:', email);  // Debugging line
   if (email) {
-      const productsData = productsCollection.find({ email }); // Use the correct field name
+      const productsData = eventsCollection.find({ email }); // Use the correct field name
       const result = await productsData.toArray();
       console.log('Found blogs:', result);  // Debugging line
       res.send(result);
@@ -111,7 +115,7 @@ app.get('/purchased', async (req, res) => {
   const email = req.query.email;
   console.log('Query email:', email);  // Debugging line
   if (email) {
-      const productsData = purchaseCollection.find({ email }); // Use the correct field name
+      const productsData = joinedEventsCollection.find({ email }); // Use the correct field name
       const result = await productsData.toArray();
       console.log('Found blogs:', result);  // Debugging line
       res.send(result);
@@ -131,17 +135,17 @@ app.get('/purchased', async (req, res) => {
 // get single data
 app.get('/products/:id', async(req, res) => {
     const id = req.params.id
-    const productsData =  await productsCollection.findOne({_id: new ObjectId(id)});
+    const productsData =  await eventsCollection.findOne({_id: new ObjectId(id)});
     res.send(productsData);
 })
 
 
 // update
-app.patch('/products/:id', async(req, res) => {
+app.patch('/events/:id', async(req, res) => {
     const id = req.params.id
     const updatedData = req.body ;
 
-    const result =  await productsCollection.updateOne(
+    const result =  await eventsCollection.updateOne(
       { _id: new ObjectId(id) },  
       { $set:updatedData  }  
       
@@ -152,7 +156,7 @@ app.patch('/products/:id', async(req, res) => {
 // delete
 app.delete('/products/:id', async(req, res) => {
     const id = req.params.id
-    const result =  await productsCollection.deleteOne(
+    const result =  await eventsCollection.deleteOne(
       { _id: new ObjectId(id) },  
     );
     res.send(result);
@@ -227,4 +231,20 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
+
+
+// const serverlessExpress = require('@vendia/serverless-express');
+// module.exports = serverlessExpress({ app });
+
+// if (process.env.NODE_ENV !== 'production') {
+//   // For local development
+//   const port = process.env.PORT || 5000;
+//   app.listen(port, () => {
+//     console.log(`Server running locally at http://localhost:${port}`);
+//   });
+// } else {
+//   // For Vercel serverless deployment
+//   module.exports = serverlessExpress({ app });
+// }
+
 
